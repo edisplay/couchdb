@@ -229,6 +229,7 @@ init(_) ->
     ],
     ?MODULE = ets:new(?MODULE, EtsOpts),
     ok = couch_replicator_share:init(),
+    ok = couch_replicator_connect:init(),
     ok = config:listen_for_changes(?MODULE, nil),
     Interval = get_interval_msec(),
     MaxJobs = config:get_integer("replicator", "max_jobs", ?DEFAULT_MAX_JOBS),
@@ -384,6 +385,9 @@ handle_config_change("replicator", "interval", V, _, S) ->
     {ok, S};
 handle_config_change("replicator", "max_history", V, _, S) ->
     ok = gen_server:cast(?MODULE, {set_max_history, list_to_integer(V)}),
+    {ok, S};
+handle_config_change("replicator", "connect_to", _, _, S) ->
+    ok = couch_replicator_connect:init(),
     {ok, S};
 handle_config_change("replicator.shares", Key, deleted, _, S) ->
     ok = gen_server:cast(?MODULE, {reset_shares, list_to_binary(Key)}),

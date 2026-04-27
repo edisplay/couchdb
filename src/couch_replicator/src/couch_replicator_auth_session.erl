@@ -66,6 +66,7 @@
 ]).
 
 -include_lib("couch_replicator/include/couch_replicator_api_wrap.hrl").
+-include_lib("ibrowse/include/ibrowse.hrl").
 
 -type headers() :: [{string(), string()}].
 -type code() :: non_neg_integer().
@@ -311,20 +312,24 @@ refresh(#state{session_url = Url, user = User, pass = Pass} = State) ->
     {ok, string(), headers(), binary()} | {error, term()}.
 http_request(#state{httpdb_pool = Pool} = State, Url, Headers, Method, Body) ->
     Timeout = State#state.httpdb_timeout,
+
     Opts = [
         {response_format, binary},
         {inactivity_timeout, Timeout}
         | State#state.httpdb_ibrowse_options
     ],
+
+    {Url1, Opts1} = couch_replicator_connect:apply_connect_to(Url, Opts),
+
     {ok, Wrk} = couch_replicator_httpc_pool:get_worker(Pool),
     try
         Result = ibrowse:send_req_direct(
             Wrk,
-            Url,
+            Url1,
             Headers,
             Method,
             Body,
-            Opts,
+            Opts1,
             Timeout
         ),
         case Result of

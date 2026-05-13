@@ -111,7 +111,7 @@ send_ibrowse_req(#httpdb{headers = BaseHeaders} = HttpDb0, Params) ->
     UserHeaders = get_value(headers, Params, []),
     Headers1 = merge_headers(BaseHeaders, UserHeaders),
     {Headers2, HttpDb} = couch_replicator_auth:update_headers(HttpDb0, Headers1),
-    Url = full_url(HttpDb, Params),
+    Url0 = full_url(HttpDb, Params),
     Body = get_value(body, Params, []),
     case get_value(path, Params) == "_changes" of
         true ->
@@ -131,7 +131,7 @@ send_ibrowse_req(#httpdb{headers = BaseHeaders} = HttpDb0, Params) ->
             {User, Pass} when is_list(User), is_list(Pass) ->
                 [{basic_auth, {User, Pass}}]
         end,
-    IbrowseOptions =
+    IbrowseOptions0 =
         BasicAuthOpts ++
             [
                 {response_format, binary},
@@ -142,6 +142,13 @@ send_ibrowse_req(#httpdb{headers = BaseHeaders} = HttpDb0, Params) ->
                     HttpDb#httpdb.ibrowse_options
                 )
             ],
+
+    % Apply connect_to override and SNI configuration
+    {Url, IbrowseOptions} = couch_replicator_connect:apply_connect_to(
+        Url0,
+        IbrowseOptions0
+    ),
+
     backoff_before_request(Worker, HttpDb, Params),
     Response = ibrowse:send_req_direct(
         Worker, Url, Headers2, Method, Body, IbrowseOptions, Timeout
